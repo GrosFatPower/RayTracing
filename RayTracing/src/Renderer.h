@@ -8,6 +8,8 @@
 #include <stdio.h>
 #include <glm/glm.hpp>
 
+class Renderer;
+
 struct Camera
 {
   glm::vec3  _Orig;
@@ -80,6 +82,17 @@ public:
   std::vector<MyShape * > _Shapes;
 };
 
+struct ThreadData
+{
+  Renderer * _Renderer;
+  uint32_t   _Width;
+  uint32_t   _Height;
+  uint32_t   _StartX;
+  uint32_t   _EndX;
+  uint32_t   _StartY;
+  uint32_t   _EndY;
+};
+
 class Renderer
 {
 public:
@@ -95,7 +108,7 @@ public:
   int GetNumThreads() const { return m_NumThreads; }
 
 private:
-  static void RenderPixels( Renderer * myRenderer, uint32_t startx, uint32_t endx, uint32_t starty, uint32_t endy );
+  static void RenderPixels( ThreadData td );
 
   uint32_t PerPixel(const glm::vec2 & coord);
 

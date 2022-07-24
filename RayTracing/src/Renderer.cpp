@@ -77,18 +77,18 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
   m_ImageData = new uint32_t[width * height];
 }
 
-void Renderer::RenderPixels( Renderer * myRenderer, uint32_t startx, uint32_t endx, uint32_t starty, uint32_t endy )
+void Renderer::RenderPixels( ThreadData td )
 {
-  float invWidth  = 1.f / (float) myRenderer -> m_FinalImage -> GetWidth();
-  float invHeight = 1.f / (float) myRenderer -> m_FinalImage -> GetHeight();
+  float invWidth  = 1.f / (float) td._Width;
+  float invHeight = 1.f / (float) td._Height;
 
-  for (uint32_t y = starty; y < endy; y++)
+  for (uint32_t y = td._StartY; y < td._EndY; y++)
   {
-    for (uint32_t x = startx; x < endx; x++)
+    for (uint32_t x = td._StartX; x < td._EndX; x++)
     {
       glm::vec2 coord = { x * invWidth, y * invHeight };
-      coord = coord * 2.0f - 1.0f; // -1 -> 1
-      myRenderer -> m_ImageData[x + y * myRenderer -> m_FinalImage -> GetWidth()] = myRenderer -> PerPixel(coord);
+      coord = coord * 2.0f - 1.0f; // -1.1
+      td._Renderer -> m_ImageData[x + y * td._Width] = td._Renderer -> PerPixel(coord);
     }
   }
 }
@@ -101,18 +101,18 @@ void Renderer::Render()
   S_Cam._FirstPoint = S_Cam._Orig + S_Cam._Dir * S_Cam._ViewPlane;
 
   std::vector<std::thread> threads;
+  ThreadData * TD = new ThreadData[m_NumThreads];
 
   for ( int i = 0; i < m_NumThreads; ++i )
   {
-    //int startx = ( m_FinalImage -> GetWidth() / m_NumThreads ) * i;
-    //int endx = startx + ( m_FinalImage -> GetWidth() / m_NumThreads );
-    //int starty = 0;
-    //int endy = m_FinalImage -> GetHeight();
-    int startx = 0;
-    int endx = m_FinalImage -> GetWidth();
-    int starty = ( m_FinalImage -> GetHeight() / m_NumThreads ) * i;
-    int endy = starty + ( m_FinalImage -> GetHeight() / m_NumThreads );
-    threads.emplace_back(std::thread(Renderer::RenderPixels, this, startx, endx, starty,endy));
+    TD[i]._Renderer = this;
+    TD[i]._Width    = m_FinalImage -> GetWidth();
+    TD[i]._Height   = m_FinalImage -> GetHeight();
+    TD[i]._StartX   = 0;
+    TD[i]._EndX     = TD[i]._Width;
+    TD[i]._StartY   = ( TD[i]._Height / m_NumThreads ) * i;
+    TD[i]._EndY     = TD[i]._StartY + ( TD[i]._Height / m_NumThreads );
+    threads.emplace_back(std::thread(Renderer::RenderPixels, TD[i]));
   }
 
   for ( auto & thread : threads )
@@ -121,6 +121,8 @@ void Renderer::Render()
   }
 
   m_FinalImage->SetData(m_ImageData);
+
+  delete[] TD;
 }
 
 uint32_t Renderer::PerPixel(const glm::vec2 & coord)
