@@ -6,6 +6,7 @@
 
 #include <stdlib.h>
 #include <string>
+#include <thread>
 
 static Camera S_Cam;
 static Scene  S_Scene;
@@ -17,6 +18,7 @@ Renderer::Renderer()
 , m_BackgroundData(nullptr)
 , m_BackGroundWidth(0)
 , m_BackGroundHeight(0)
+, m_NumThreads(1)
 {
   std::string filepath("../../../resources/img/nature.jpg");
 
@@ -75,24 +77,47 @@ void Renderer::OnResize(uint32_t width, uint32_t height)
   m_ImageData = new uint32_t[width * height];
 }
 
+void Renderer::RenderPixels( Renderer * myRenderer, uint32_t startx, uint32_t endx, uint32_t starty, uint32_t endy )
+{
+  float invWidth  = 1.f / (float) myRenderer -> m_FinalImage -> GetWidth();
+  float invHeight = 1.f / (float) myRenderer -> m_FinalImage -> GetHeight();
+
+  for (uint32_t y = starty; y < endy; y++)
+  {
+    for (uint32_t x = startx; x < endx; x++)
+    {
+      glm::vec2 coord = { x * invWidth, y * invHeight };
+      coord = coord * 2.0f - 1.0f; // -1 -> 1
+      myRenderer -> m_ImageData[x + y * myRenderer -> m_FinalImage -> GetWidth()] = myRenderer -> PerPixel(coord);
+    }
+  }
+}
+
 void Renderer::Render()
 {
-  float invWidth  = 1.f / (float) m_FinalImage -> GetWidth();
-  float invHeight = 1.f / (float) m_FinalImage -> GetHeight();
-
-  S_Cam._Ratio      = m_FinalImage -> GetWidth() * invHeight;
+  S_Cam._Ratio      = m_FinalImage -> GetWidth() / (float) m_FinalImage -> GetHeight();
   S_Cam._DirV       = -S_Cam._Up;
   S_Cam._DirU       = glm::cross(S_Cam._Dir, S_Cam._DirV);
   S_Cam._FirstPoint = S_Cam._Orig + S_Cam._Dir * S_Cam._ViewPlane;
 
-  for (uint32_t y = 0; y < m_FinalImage->GetHeight(); y++)
+  std::vector<std::thread> threads;
+
+  for ( int i = 0; i < m_NumThreads; ++i )
   {
-    for (uint32_t x = 0; x < m_FinalImage->GetWidth(); x++)
-    {
-      glm::vec2 coord = { x * invWidth, y * invHeight };
-      coord = coord * 2.0f - 1.0f; // -1 -> 1
-      m_ImageData[x + y * m_FinalImage->GetWidth()] = PerPixel(coord);
-    }
+    //int startx = ( m_FinalImage -> GetWidth() / m_NumThreads ) * i;
+    //int endx = startx + ( m_FinalImage -> GetWidth() / m_NumThreads );
+    //int starty = 0;
+    //int endy = m_FinalImage -> GetHeight();
+    int startx = 0;
+    int endx = m_FinalImage -> GetWidth();
+    int starty = ( m_FinalImage -> GetHeight() / m_NumThreads ) * i;
+    int endy = starty + ( m_FinalImage -> GetHeight() / m_NumThreads );
+    threads.emplace_back(std::thread(Renderer::RenderPixels, this, startx, endx, starty,endy));
+  }
+
+  for ( auto & thread : threads )
+  {
+    thread.join();
   }
 
   m_FinalImage->SetData(m_ImageData);

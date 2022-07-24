@@ -90,14 +90,24 @@ public:
   void Render();
 
   std::shared_ptr<Walnut::Image> GetFinalImage() const { return m_FinalImage; }
+
+  void SetNumThreads( int numThreads ) { if ( numThreads > 0 ) m_NumThreads = numThreads; }
+  int GetNumThreads() const { return m_NumThreads; }
+
 private:
+  static void RenderPixels( Renderer * myRenderer, uint32_t startx, uint32_t endx, uint32_t starty, uint32_t endy );
+
   uint32_t PerPixel(const glm::vec2 & coord);
+
   uint32_t FetchBackgroundColor(const glm::vec2 & coord);
+
   bool IsIntersecting(const glm::vec3 & orig, const glm::vec3 & dir, const MySphere & sphere, float & minDist);
+
 private:
   std::shared_ptr<Walnut::Image> m_FinalImage;
-  uint32_t* m_ImageData = nullptr;
-  uint32_t* m_BackgroundData = nullptr;
-  int       m_BackGroundWidth;
-  int       m_BackGroundHeight;
+  uint32_t*                      m_ImageData = nullptr;
+  uint32_t*                      m_BackgroundData = nullptr;
+  int                            m_BackGroundWidth;
+  int                            m_BackGroundHeight;
+  int                            m_NumThreads;
 };
